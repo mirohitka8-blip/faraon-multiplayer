@@ -134,7 +134,6 @@ io.on("connection", socket => {
     room.players = room.players.filter(p => p.id !== playerId);
 
     io.to(playerId).emit("kicked");
-
     io.to(code).emit("roomUpdate", room);
   });
 
@@ -146,7 +145,6 @@ io.on("connection", socket => {
 
     const room = rooms[code];
     if (!room) return;
-
     if (room.host !== socket.id) return;
 
     const allReady = room.players.every(p => p.ready);
@@ -193,11 +191,25 @@ io.on("connection", socket => {
 
     const hand = g.hands[socket.id];
 
-    // remove cards from hand
+    console.log("PLAY:", socket.id, cards);
+
+    // REMOVE CARDS
     cards.forEach(c => {
       const idx = hand.indexOf(c);
       if (idx !== -1) hand.splice(idx, 1);
     });
+
+    // ===== WIN CHECK =====
+
+    if (hand.length === 0) {
+
+      io.to(code).emit("gameOver", {
+        winner: socket.id
+      });
+
+      room.game = null;
+      return;
+    }
 
     const lastCard = cards[cards.length - 1];
     const value = lastCard.slice(0, -1);
@@ -255,7 +267,7 @@ io.on("connection", socket => {
 
     // QUEEN FORCE SUIT
     if (value === "Q") {
-      g.forcedSuit = suits[Math.floor(Math.random()*4)];
+      g.forcedSuit = suits[Math.floor(Math.random() * 4)];
     }
 
     /* ===== NEXT TURN ===== */
@@ -263,7 +275,9 @@ io.on("connection", socket => {
     g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
     if (g.skipCount > 0) {
+
       g.turnIndex = (g.turnIndex + 1) % g.order.length;
+      g.skipCount--;
     }
 
     io.to(code).emit("gameUpdate", {
@@ -291,10 +305,14 @@ io.on("connection", socket => {
     const currentPlayer = g.order[g.turnIndex];
     if (socket.id !== currentPlayer) return;
 
-    if (g.deck.length === 0) return;
+    console.log("DRAW:", socket.id);
 
-    const card = g.deck.pop();
-    g.hands[socket.id].push(card);
+    let amount = g.pendingDraw > 0 ? g.pendingDraw : 1;
+
+    for (let i = 0; i < amount && g.deck.length; i++) {
+      const card = g.deck.pop();
+      g.hands[socket.id].push(card);
+    }
 
     g.pendingDraw = 0;
 
@@ -322,7 +340,6 @@ io.on("connection", socket => {
     for (const code in rooms) {
 
       const room = rooms[code];
-
       const index = room.players.findIndex(p => p.id === socket.id);
 
       if (index !== -1) {
