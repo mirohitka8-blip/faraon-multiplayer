@@ -11,93 +11,83 @@ const io = new Server(server, {
   }
 });
 
-/* ===============================
-   GLOBAL ROOMS STORAGE
-================================ */
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, () => {
+  console.log("SERVER RUNNING ON", PORT);
+});
+
+/* =========================
+   GLOBAL STATE
+========================= */
 
 const rooms = {};
 
-/* ===============================
+const suits = ["♥","♦","♣","♠"];
+const values = ["7","8","9","10","J","Q","K","A"];
+
+/* =========================
    HELPERS
-================================ */
+========================= */
 
 function generateRoomCode() {
-
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "";
-
-  for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-
-  return code;
+  return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
 
 function createDeck() {
-
-  const suits = ["♥","♦","♣","♠"];
-  const values = ["7","8","9","10","J","Q","K","A"];
-
   const deck = [];
-
-  suits.forEach(s =>
-    values.forEach(v => deck.push(v + s))
-  );
-
-  return deck.sort(() => Math.random() - 0.5);
+  suits.forEach(s => values.forEach(v => deck.push(v + s)));
+  deck.sort(() => Math.random() - 0.5);
+  return deck;
 }
 
-/* ===============================
-   SOCKET.IO
-================================ */
+/* =========================
+   SOCKET HANDLING
+========================= */
 
 io.on("connection", socket => {
 
   console.log("CONNECTED:", socket.id);
 
-  /* ===== CREATE ROOM ===== */
+  /* =========================
+     CREATE ROOM
+  ========================= */
 
-  socket.on("createRoom", ({ name }) => {
+  socket.on("createRoom", name => {
 
     const code = generateRoomCode();
 
     rooms[code] = {
-      hostId: socket.id,
-      players: [
-        {
-          id: socket.id,
-          name,
-          ready: false
-        }
-      ],
-      started: false,
+      host: socket.id,
+      players: [{
+        id: socket.id,
+        name,
+        ready: false
+      }],
       game: null
     };
 
     socket.join(code);
 
-    socket.emit("roomJoined", {
-      roomCode: code,
-      isHost: true,
-      players: rooms[code].players
-    });
-
-    console.log("ROOM CREATED:", code);
+    socket.emit("roomJoined", code);
+    io.to(code).emit("roomUpdate", rooms[code]);
   });
 
-  /* ===== JOIN ROOM ===== */
+  /* =========================
+     JOIN ROOM
+  ========================= */
 
-  socket.on("joinRoom", ({ name, code }) => {
+  socket.on("joinRoom", ({ code, name }) => {
 
     const room = rooms[code];
 
     if (!room) {
-      socket.emit("errorMessage", "Miestnosť neexistuje");
+      socket.emit("errorMessage", "Room neexistuje");
       return;
     }
 
     if (room.players.length >= 4) {
-      socket.emit("errorMessage", "Miestnosť je plná");
+      socket.emit("errorMessage", "Room je plný");
       return;
     }
 
@@ -109,55 +99,60 @@ io.on("connection", socket => {
 
     socket.join(code);
 
-    io.to(code).emit("roomUpdate", room.players);
-
-    socket.emit("roomJoined", {
-      roomCode: code,
-      isHost: false,
-      players: room.players
-    });
-
-    console.log("PLAYER JOINED:", code);
+    socket.emit("roomJoined", code);
+    io.to(code).emit("roomUpdate", room);
   });
 
-  /* ===== READY ===== */
+  /* =========================
+     READY TOGGLE
+  ========================= */
 
-  socket.on("playerReady", (code) => {
+  socket.on("ready", code => {
 
     const room = rooms[code];
     if (!room) return;
 
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player) return;
+    const p = room.players.find(p => p.id === socket.id);
+    if (!p) return;
 
-    player.ready = !player.ready;
+    p.ready = !p.ready;
 
-    io.to(code).emit("roomUpdate", room.players);
+    io.to(code).emit("roomUpdate", room);
   });
 
-  /* ===== START GAME ===== */
+  /* =========================
+     KICK PLAYER
+  ========================= */
 
-  socket.on("startGame", (code) => {
+  socket.on("kickPlayer", ({ code, playerId }) => {
 
     const room = rooms[code];
     if (!room) return;
 
-    if (socket.id !== room.hostId) return;
+    if (room.host !== socket.id) return;
 
-    if (room.players.length < 2) {
-      socket.emit("errorMessage", "Potrební sú aspoň 2 hráči");
-      return;
-    }
+    room.players = room.players.filter(p => p.id !== playerId);
+
+    io.to(playerId).emit("kicked");
+
+    io.to(code).emit("roomUpdate", room);
+  });
+
+  /* =========================
+     START GAME
+  ========================= */
+
+  socket.on("startGame", code => {
+
+    const room = rooms[code];
+    if (!room) return;
+
+    if (room.host !== socket.id) return;
 
     const allReady = room.players.every(p => p.ready);
-
-    if (!allReady) {
-      socket.emit("errorMessage", "Nie všetci sú READY");
-      return;
-    }
+    if (!allReady) return;
 
     const deck = createDeck();
-
     const hands = {};
 
     room.players.forEach(p => {
@@ -171,75 +166,154 @@ io.on("connection", socket => {
       hands,
       tableCard,
       turnIndex: 0,
-      order: room.players.map(p => p.id)
+      order: room.players.map(p => p.id),
+
+      pendingDraw: 0,
+      skipCount: 0,
+      forcedSuit: null,
+      freePlay: false
     };
 
-    room.started = true;
-
-    io.to(code).emit("gameStarted", {
-      hands,
-      tableCard,
-      turnPlayer: room.game.order[0]
-    });
-
-    console.log("GAME STARTED:", code);
+    io.to(code).emit("gameStarted", room.game);
   });
 
-  /* ===== PLAY CARD ===== */
+  /* =========================
+     PLAY CARD
+  ========================= */
 
-  socket.on("playCard", ({ room, cards }) => {
-
-    const r = rooms[room];
-    if (!r || !r.game) return;
-
-    const g = r.game;
-
-    // kontrola tahu
-    if (g.order[g.turnIndex] !== socket.id) return;
-
-    // odstráň karty z ruky hráča
-    cards.forEach(card => {
-
-      const idx = g.hands[socket.id].indexOf(card);
-
-      if (idx !== -1) {
-        g.hands[socket.id].splice(idx, 1);
-      }
-
-    });
-
-    // posledná karta ide na stôl
-    g.tableCard = cards[cards.length - 1];
-
-    // ďalší hráč
-    g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-    io.to(room).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: g.order[g.turnIndex]
-    });
-
-  });
-
-  /* ===== KICK PLAYER ===== */
-
-  socket.on("kickPlayer", ({ code, playerId }) => {
+  socket.on("playCard", ({ room: code, cards }) => {
 
     const room = rooms[code];
-    if (!room) return;
+    if (!room || !room.game) return;
 
-    if (socket.id !== room.hostId) return;
+    const g = room.game;
 
-    room.players = room.players.filter(p => p.id !== playerId);
+    const currentPlayer = g.order[g.turnIndex];
+    if (socket.id !== currentPlayer) return;
 
-    io.to(playerId).emit("kicked");
+    const hand = g.hands[socket.id];
 
-    io.to(code).emit("roomUpdate", room.players);
+    // remove cards from hand
+    cards.forEach(c => {
+      const idx = hand.indexOf(c);
+      if (idx !== -1) hand.splice(idx, 1);
+    });
+
+    const lastCard = cards[cards.length - 1];
+    const value = lastCard.slice(0, -1);
+    const suit = lastCard.slice(-1);
+
+    g.freePlay = false;
+
+    /* ===== BURN ===== */
+
+    const sameValue = cards.every(c => c.slice(0,-1) === value);
+
+    if (sameValue && cards.length === 4) {
+
+      g.pendingDraw = 0;
+      g.skipCount = 0;
+      g.forcedSuit = null;
+      g.freePlay = true;
+
+      g.tableCard = lastCard;
+
+      io.to(code).emit("gameUpdate", {
+        hands: g.hands,
+        tableCard: g.tableCard,
+        turnPlayer: socket.id,
+        forcedSuit: g.forcedSuit,
+        pendingDraw: g.pendingDraw,
+        skipCount: g.skipCount,
+        effects: { burn: true }
+      });
+
+      return;
+    }
+
+    /* ===== NORMAL APPLY ===== */
+
+    g.tableCard = lastCard;
+
+    if (value !== "Q") g.forcedSuit = null;
+
+    // GREEN JACK RESET
+    if (value === "J" && suit === "♣") {
+      g.pendingDraw = 0;
+      g.skipCount = 0;
+    }
+
+    // +3 STACK
+    if (value === "7") {
+      g.pendingDraw += 3;
+    }
+
+    // ACE STOP
+    if (value === "A") {
+      g.skipCount++;
+    }
+
+    // QUEEN FORCE SUIT
+    if (value === "Q") {
+      g.forcedSuit = suits[Math.floor(Math.random()*4)];
+    }
+
+    /* ===== NEXT TURN ===== */
+
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+    if (g.skipCount > 0) {
+      g.turnIndex = (g.turnIndex + 1) % g.order.length;
+    }
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount
+    });
 
   });
 
-  /* ===== DISCONNECT ===== */
+  /* =========================
+     DRAW CARD
+  ========================= */
+
+  socket.on("drawCard", code => {
+
+    const room = rooms[code];
+    if (!room || !room.game) return;
+
+    const g = room.game;
+
+    const currentPlayer = g.order[g.turnIndex];
+    if (socket.id !== currentPlayer) return;
+
+    if (g.deck.length === 0) return;
+
+    const card = g.deck.pop();
+    g.hands[socket.id].push(card);
+
+    g.pendingDraw = 0;
+
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount
+    });
+
+  });
+
+  /* =========================
+     DISCONNECT
+  ========================= */
 
   socket.on("disconnect", () => {
 
@@ -253,40 +327,20 @@ io.on("connection", socket => {
 
       if (index !== -1) {
 
-        const wasHost = room.players[index].id === room.hostId;
-
         room.players.splice(index, 1);
 
-        // nový host
-        if (wasHost && room.players.length) {
-          room.hostId = room.players[0].id;
-        }
-
-        // zruš miestnosť ak prázdna
-        if (!room.players.length) {
-
+        if (room.players.length === 0) {
           delete rooms[code];
-
-        } else {
-
-          io.to(code).emit("roomUpdate", room.players);
-
+          return;
         }
 
-        break;
+        if (room.host === socket.id) {
+          room.host = room.players[0].id;
+        }
+
+        io.to(code).emit("roomUpdate", room);
       }
     }
-
   });
 
-});
-
-/* ===============================
-   SERVER START
-================================ */
-
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, () => {
-  console.log("SERVER RUNNING ON PORT", PORT);
 });
