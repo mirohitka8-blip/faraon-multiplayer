@@ -69,7 +69,8 @@ io.on("connection", socket => {
 
     socket.join(code);
 
-    socket.emit("roomJoined", code);
+    socket.emit("roomJoined", { code });
+
     io.to(code).emit("roomUpdate", rooms[code]);
   });
 
@@ -99,7 +100,7 @@ io.on("connection", socket => {
 
     socket.join(code);
 
-    socket.emit("roomJoined", code);
+    socket.emit("roomJoined", { code });
     io.to(code).emit("roomUpdate", room);
   });
 
