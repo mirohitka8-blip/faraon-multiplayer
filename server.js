@@ -25,6 +25,20 @@ const io = new Server(server, {
 });
 
 let waitingPlayer = null;
+function createDeck() {
+
+  const suits = ["♥","♦","♣","♠"];
+  const values = ["7","8","9","10","J","Q","K","A"];
+
+  const deck = [];
+
+  suits.forEach(s =>
+    values.forEach(v => deck.push(v + s))
+  );
+
+  return deck.sort(() => Math.random() - 0.5);
+}
+
 
 io.on("connection", socket => {
 
@@ -112,6 +126,44 @@ socket.on("joinRoom", ({ name, code }) => {
     socket.emit("errorMessage", "Potrební sú aspoň 2 hráči");
     return;
   }
+
+  const allReady = room.players.every(p => p.ready);
+  if (!allReady) {
+    socket.emit("errorMessage", "Nie všetci sú READY");
+    return;
+  }
+
+  // ===== INIT GAME STATE =====
+
+  const deck = createDeck();
+
+  const hands = {};
+
+  room.players.forEach(p => {
+    hands[p.id] = deck.splice(0,5);
+  });
+
+  const tableCard = deck.pop();
+
+  room.game = {
+    deck,
+    hands,
+    tableCard,
+    turnIndex: 0,
+    order: room.players.map(p => p.id)
+  };
+
+  room.started = true;
+
+  io.to(code).emit("gameStarted", {
+    hands,
+    tableCard,
+    turnPlayer: room.game.order[0]
+  });
+
+  console.log("GAME STARTED:", code);
+});
+
 
   const allReady = room.players.every(p => p.ready);
 
