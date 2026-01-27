@@ -257,14 +257,29 @@ io.on("connection", socket => {
       g.skipCount = 0;
     }
 
-    // +3 STACK
-    if (value === "7") {
-      g.pendingDraw += 3;
-    }
+    // ===== +3 STACK =====
+if (value === "7") {
 
-    // ACE STOP
-    // ACE STOP
-  if (value === "A") {
+  g.pendingDraw += 3;
+
+  const nextIndex = (g.turnIndex + 1) % g.order.length;
+  g.turnIndex = nextIndex;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    drawPenalty: true
+  });
+
+  return; // ❗ STOP NORMAL FLOW
+}
+
+  // ===== ACE STOP =====
+if (value === "A") {
 
   g.skipCount = 1;
 
@@ -280,8 +295,9 @@ io.on("connection", socket => {
     aceDecision: true
   });
 
-  return;
+  return; // ❗ STOP NORMAL FLOW
 }
+
 
 
     // QUEEN FORCE SUIT
@@ -315,6 +331,32 @@ io.on("connection", socket => {
   ========================= */
 
  socket.on("drawCard", code => {
+
+  // +3 penalty draw handling
+if (g.pendingDraw > 0) {
+
+  const amount = g.pendingDraw;
+
+  for (let i = 0; i < amount && g.deck.length; i++) {
+    g.hands[socket.id].push(g.deck.pop());
+  }
+
+  g.pendingDraw = 0;
+
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount
+  });
+
+  return;
+}
+
 
   const room = rooms[code];
   if (!room || !room.game) return;
