@@ -407,10 +407,10 @@ socket.on("standAce", ({ room: code }) => {
   const current = g.order[g.turnIndex];
   if (socket.id !== current) return;
 
-  // spotrebuj stop efekt
+  // spotrebuj stopku
   g.skipCount = 0;
 
-  // posuň turn ďalej
+  // posuň turn
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
   io.to(code).emit("gameUpdate", {
@@ -422,6 +422,7 @@ socket.on("standAce", ({ room: code }) => {
     skipCount: g.skipCount
   });
 });
+
 
 
 
@@ -463,10 +464,10 @@ socket.on("drawCard", code => {
 
   const current = g.order[g.turnIndex];
   if (socket.id !== current) return;
-  
-  // =========================
-  // +3 FORCED DRAW
-  // =========================
+
+  /* =========================
+     +3 PENALTY DRAW
+  ========================= */
 
   if (g.pendingDraw > 0) {
 
@@ -492,9 +493,9 @@ socket.on("drawCard", code => {
     return;
   }
 
-  // =========================
-  // NORMAL DRAW
-  // =========================
+  /* =========================
+     NORMAL DRAW
+  ========================= */
 
   if (!g.deck.length) return;
 
@@ -512,6 +513,7 @@ socket.on("drawCard", code => {
   });
 
 });
+
 
 
 /* =========================
