@@ -263,9 +263,26 @@ io.on("connection", socket => {
     }
 
     // ACE STOP
-    if (value === "A") {
-      g.skipCount++;
-    }
+    // ACE STOP
+  if (value === "A") {
+
+  g.skipCount = 1;
+
+  const nextIndex = (g.turnIndex + 1) % g.order.length;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[nextIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    aceDecision: true
+  });
+
+  return;
+}
+
 
     // QUEEN FORCE SUIT
     if (value === "Q") {
