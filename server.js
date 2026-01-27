@@ -229,12 +229,14 @@ socket.on("startGame", code => {
 
   const g = room.game;
 
-  const current = g.order[g.turnIndex];
-  if (socket.id !== current) return;
+  const currentPlayer = g.order[g.turnIndex];
+  if (socket.id !== currentPlayer) return;
 
   const hand = g.hands[socket.id];
 
-  // ===== SERVER VALIDATION =====
+  /* =========================
+     SERVER VALIDATION
+  ========================= */
 
   const first = cards[0];
 
@@ -243,82 +245,138 @@ socket.on("startGame", code => {
     return;
   }
 
-  // ===== REMOVE CARDS =====
+  /* =========================
+     REMOVE CARDS
+  ========================= */
 
   cards.forEach(c => {
-  const i = hand.indexOf(c);
-  if (i !== -1) hand.splice(i, 1);
+    const idx = hand.indexOf(c);
+    if (idx !== -1) hand.splice(idx, 1);
   });
 
-
-  // ===== WIN CHECK =====
+  /* =========================
+     WIN CHECK
+  ========================= */
 
   if (hand.length === 0) {
 
-  io.to(code).emit("gameOver", {
-    winner: socket.id
-  });
+    io.to(code).emit("gameOver", {
+      winner: socket.id
+    });
 
-  room.game = null;
-  return;
+    room.game = null;
+    return;
   }
 
-
-  const last = cards[cards.length-1];
-  const value = last.slice(0,-1);
+  const last = cards[cards.length - 1];
+  const value = last.slice(0, -1);
   const suit = last.slice(-1);
 
   g.tableCard = last;
 
-  /* ===== BURN ===== */
+  /* =========================
+     BURN (4 SAME)
+  ========================= */
 
-  const sameValue = cards.every(c => c.slice(0,-1) === value);
+  const sameValue = cards.every(c => c.slice(0, -1) === value);
 
   if (sameValue && cards.length === 4) {
 
-  g.pendingDraw = 0;
-  g.skipCount = 0;
-  g.forcedSuit = null;
+    g.pendingDraw = 0;
+    g.skipCount = 0;
+    g.forcedSuit = null;
 
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: socket.id,
-    effects: { burn:true }
-  });
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: socket.id,
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount,
+      effects: { burn: true }
+    });
 
-  return;
+    return;
   }
 
-  /* ===== ACE STOP ===== */
+  /* =========================
+     QUEEN (HORNÍK)
+  ========================= */
+
+  if (value === "Q") {
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: socket.id, // same player
+      forcedSuit: null,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount,
+      queenDecision: true
+    });
+
+    return;
+  }
+
+  /* =========================
+     ACE STOP
+  ========================= */
 
   if (value === "A") {
 
-  // nastav stopku pre ďalšieho hráča
-  g.skipCount = 1;
+    g.skipCount = 1;
 
-  // posuň turn na hráča ktorý má reagovať
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: g.order[g.turnIndex],
-    forcedSuit: g.forcedSuit,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount,
-    aceDecision: true
-  });
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount,
+      aceDecision: true
+    });
 
-  return;
-}
+    return;
+  }
 
+  /* =========================
+     +3 STACK
+  ========================= */
 
-/* ===== +3 STACK ===== */
+  if (value === "7") {
 
-if (value === "7") {
+    g.pendingDraw += 3;
 
-  g.pendingDraw += 3;
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount
+    });
+
+    return;
+  }
+
+  /* =========================
+     GREEN JACK RESET
+  ========================= */
+
+  if (value === "J" && suit === "♣") {
+    g.pendingDraw = 0;
+    g.skipCount = 0;
+  }
+
+  /* =========================
+     NORMAL TURN FLOW
+  ========================= */
+
+  g.forcedSuit = null;
 
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
@@ -330,49 +388,6 @@ if (value === "7") {
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount
   });
-
-  return;
-}
-
-
-
-/* ===== GREEN JACK ===== */
-
-if (value === "J" && suit === "♣") {
-  g.pendingDraw = 0;
-  g.skipCount = 0;
-}
-
-/* ===== QUEEN ===== */
-
-if (value === "Q") {
-
-  // počkaj na výber farby od hráča
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: socket.id, // stále ten istý hráč
-    forcedSuit: null,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount,
-    queenDecision: true
-  });
-
-  return;
-}
-
-/* ===== NORMAL NEXT TURN ===== */
-
-g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-io.to(code).emit("gameUpdate", {
-  hands: g.hands,
-  tableCard: g.tableCard,
-  turnPlayer: g.order[g.turnIndex],
-  forcedSuit: g.forcedSuit,
-  pendingDraw: g.pendingDraw,
-  skipCount: g.skipCount
-});
 
 });
 
