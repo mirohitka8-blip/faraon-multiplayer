@@ -236,6 +236,26 @@ socket.on("playCard", ({ room: code, cards }) => {
   // ===== REMOVE CARDS =====
 
   cards.forEach(c => {
+
+ cards.forEach(c => {
+
+  const i = hand.indexOf(c);
+  if (i !== -1) hand.splice(i,1);
+});
+// ===== WIN CHECK =====
+
+if (hand.length === 0) {
+
+  io.to(code).emit("gameOver", {
+    winner: socket.id
+  });
+
+  room.game = null;
+  return;
+}
+
+
+
     const i = hand.indexOf(c);
     if (i !== -1) hand.splice(i,1);
   });
@@ -270,7 +290,8 @@ if (sameValue && cards.length === 4) {
 
 if (value === "A") {
 
-  g.skipCount = 1;
+  g.skipCount = 0;
+
 
   const next = (g.turnIndex + 1) % g.order.length;
 
@@ -327,6 +348,13 @@ if (value === "Q") {
 
 g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
+// consume ace skip
+if (g.skipCount > 0) {
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+  g.skipCount = 0;
+}
+
+
 io.to(code).emit("gameUpdate", {
   hands: g.hands,
   tableCard: g.tableCard,
@@ -351,6 +379,9 @@ socket.on("drawCard", code => {
 
   const current = g.order[g.turnIndex];
   if (socket.id !== current) return;
+  // block draw during ace decision
+if (g.skipCount > 0) return;
+
 
 /* ===== +3 FORCED DRAW ===== */
 
