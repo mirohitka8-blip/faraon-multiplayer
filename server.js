@@ -198,16 +198,21 @@ socket.on("startGame", code => {
   const tableCard = deck.pop();
 
   room.game = {
+
+
     deck,
     hands,
     tableCard,
+    
 
     order: room.players.map(p => p.id),
     turnIndex: 0,
 
     pendingDraw: 0,
     skipCount: 0,
-    forcedSuit: null
+    forcedSuit: null,
+    waitingForQueen: null
+    
   };
 
   io.to(code).emit("gameStarted", room.game);
@@ -341,11 +346,22 @@ if (value === "J" && suit === "♣") {
 /* ===== QUEEN ===== */
 
 if (value === "Q") {
-  g.forcedSuit = suits[Math.floor(Math.random()*4)];
-} else {
-  g.forcedSuit = null;
-}
 
+  // čakáme na výber farby od hráča
+  g.waitingForQueen = socket.id;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: socket.id,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    forcedSuit: null,
+    queenDecision: true
+  });
+
+  return;
+}
 /* ===== NORMAL NEXT TURN ===== */
 
 g.turnIndex = (g.turnIndex + 1) % g.order.length;
@@ -360,6 +376,33 @@ io.to(code).emit("gameUpdate", {
 });
 
 });
+
+socket.on("chooseSuit", ({ room: code, suit }) => {
+
+  const room = rooms[code];
+  if (!room || !room.game) return;
+
+  const g = room.game;
+
+  if (g.waitingForQueen !== socket.id) return;
+
+  g.waitingForQueen = null;
+  g.forcedSuit = suit;
+
+  // posuň ťah ďalej
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount
+  });
+
+});
+
 
 socket.on("standAce", code => {
 
