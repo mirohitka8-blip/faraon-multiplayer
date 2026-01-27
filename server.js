@@ -144,6 +144,7 @@ io.on("connection", socket => {
 
   socket.on("startGame", code => {
 
+    console.log("START GAME RECEIVED", code);
     const room = rooms[code];
     if (!room) return;
     if (room.host !== socket.id) return;
