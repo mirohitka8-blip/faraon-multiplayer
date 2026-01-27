@@ -30,6 +30,36 @@ const values = ["7","8","9","10","J","Q","K","A"];
    HELPERS
 ========================= */
 
+function canPlayCard(card, tableCard, forcedSuit, pendingDraw) {
+
+  const v = card.slice(0,-1);
+  const s = card.slice(-1);
+
+  const tv = tableCard.slice(0,-1);
+  const ts = tableCard.slice(-1);
+
+  // +3 chain
+  if (pendingDraw > 0) {
+    if (v === "7") return true;
+    if (v === "J" && s === "♣") return true;
+    return false;
+  }
+
+  // forced suit
+  if (forcedSuit) {
+    return s === forcedSuit;
+  }
+
+  // green jack wildcard
+  if (v === "J" && s === "♣") return true;
+
+  // queen always allowed
+  if (v === "Q") return true;
+
+  return v === tv || s === ts;
+}
+
+
 function generateRoomCode() {
   return Math.random().toString(36).substring(2, 7).toUpperCase();
 }
@@ -202,6 +232,15 @@ io.on("connection", socket => {
     if (socket.id !== currentPlayer) return;
 
     const hand = g.hands[socket.id];
+
+    // ===== SERVER VALIDATION =====
+
+const firstCard = cards[0];
+
+if (!canPlayCard(firstCard, g.tableCard, g.forcedSuit, g.pendingDraw)) {
+  console.log("INVALID MOVE BLOCKED");
+  return;
+}
 
     console.log("PLAY:", socket.id, cards);
 
