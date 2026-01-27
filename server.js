@@ -244,10 +244,9 @@ socket.on("playCard", ({ room: code, cards }) => {
 
 cards.forEach(c => {
   const i = hand.indexOf(c);
-  if (i !== -1) {
-    hand.splice(i, 1);
-  }
+  if (i !== -1) hand.splice(i, 1);
 });
+
 
 // ===== WIN CHECK =====
 
