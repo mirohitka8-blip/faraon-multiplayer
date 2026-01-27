@@ -291,15 +291,16 @@ if (sameValue && cards.length === 4) {
 
 if (value === "A") {
 
-  g.skipCount = 0;
+  // nastav stopku pre ďalšieho hráča
+  g.skipCount = 1;
 
-
-  const next = (g.turnIndex + 1) % g.order.length;
+  // posuň turn na hráča ktorý má reagovať
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
   io.to(code).emit("gameUpdate", {
     hands: g.hands,
     tableCard: g.tableCard,
-    turnPlayer: g.order[next],
+    turnPlayer: g.order[g.turnIndex],
     forcedSuit: g.forcedSuit,
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount,
@@ -308,6 +309,7 @@ if (value === "A") {
 
   return;
 }
+
 
 /* ===== +3 STACK ===== */
 
@@ -381,9 +383,6 @@ socket.on("drawCard", code => {
 
   const current = g.order[g.turnIndex];
   if (socket.id !== current) return;
-  // block draw during ace decision
-if (g.skipCount > 0) return;
-
 
 /* ===== +3 FORCED DRAW ===== */
 
