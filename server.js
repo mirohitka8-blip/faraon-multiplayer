@@ -69,7 +69,12 @@ io.on("connection", socket => {
 
     socket.join(code);
 
-    socket.emit("roomJoined", { code });
+    socket.emit("roomJoined", {
+  roomCode: code,
+  isHost: true,
+  players: rooms[code].players
+});
+
 
     io.to(code).emit("roomUpdate", rooms[code]);
   });
@@ -100,7 +105,12 @@ io.on("connection", socket => {
 
     socket.join(code);
 
-    socket.emit("roomJoined", { code });
+    socket.emit("roomJoined", {
+  roomCode: code,
+  isHost: false,
+  players: room.players
+});
+
     io.to(code).emit("roomUpdate", room);
   });
 
@@ -326,37 +336,7 @@ if (value === "A") {
 
   });
 
-  /* =========================
-     DRAW CARD
-  ========================= */
-
- socket.on("drawCard", code => {
-
-  // +3 penalty draw handling
-if (g.pendingDraw > 0) {
-
-  const amount = g.pendingDraw;
-
-  for (let i = 0; i < amount && g.deck.length; i++) {
-    g.hands[socket.id].push(g.deck.pop());
-  }
-
-  g.pendingDraw = 0;
-
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: g.order[g.turnIndex],
-    forcedSuit: g.forcedSuit,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
-  });
-
-  return;
-}
-
+socket.on("drawCard", code => {
 
   const room = rooms[code];
   if (!room || !room.game) return;
@@ -366,17 +346,38 @@ if (g.pendingDraw > 0) {
   const currentPlayer = g.order[g.turnIndex];
   if (socket.id !== currentPlayer) return;
 
-  if (g.deck.length === 0) return;
+  /* ===== +3 FORCED DRAW ===== */
 
-  // ===== DRAW =====
-  const card = g.deck.pop();
-  g.hands[socket.id].push(card);
+  if (g.pendingDraw > 0) {
 
-  // reset penalties
-  g.pendingDraw = 0;
-  g.skipCount = 0;
+    const amount = g.pendingDraw;
 
-  // ===== NEXT TURN =====
+    for (let i = 0; i < amount && g.deck.length; i++) {
+      g.hands[socket.id].push(g.deck.pop());
+    }
+
+    g.pendingDraw = 0;
+
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount
+    });
+
+    return;
+  }
+
+  /* ===== NORMAL DRAW ===== */
+
+  if (!g.deck.length) return;
+
+  g.hands[socket.id].push(g.deck.pop());
+
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
   io.to(code).emit("gameUpdate", {
@@ -389,7 +390,6 @@ if (g.pendingDraw > 0) {
   });
 
 });
-
 
   /* =========================
      DISCONNECT
