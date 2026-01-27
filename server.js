@@ -77,7 +77,12 @@ io.on("connection", socket => {
    CREATE ROOM
 ========================= */
 
-socket.on("createRoom", ({ name }) => {
+socket.on("createRoom", payload => {
+
+  const name = typeof payload === "string"
+    ? payload
+    : payload?.name;
+
 
   const code = generateRoomCode();
 
