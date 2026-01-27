@@ -240,13 +240,15 @@ socket.on("playCard", ({ room: code, cards }) => {
 
   // ===== REMOVE CARDS =====
 
-  cards.forEach(c => {
+  // ===== REMOVE CARDS =====
 
- cards.forEach(c => {
-
+cards.forEach(c => {
   const i = hand.indexOf(c);
-  if (i !== -1) hand.splice(i,1);
+  if (i !== -1) {
+    hand.splice(i, 1);
+  }
 });
+
 // ===== WIN CHECK =====
 
 if (hand.length === 0) {
@@ -259,11 +261,6 @@ if (hand.length === 0) {
   return;
 }
 
-
-
-    const i = hand.indexOf(c);
-    if (i !== -1) hand.splice(i,1);
-  });
 
   const last = cards[cards.length-1];
   const value = last.slice(0,-1);
@@ -327,12 +324,13 @@ if (value === "7") {
     turnPlayer: g.order[g.turnIndex],
     forcedSuit: g.forcedSuit,
     pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount,
-    drawPenalty: true
+    skipCount: g.skipCount
   });
 
   return;
 }
+
+
 
 /* ===== GREEN JACK ===== */
 
