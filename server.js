@@ -46,24 +46,28 @@ function canPlayCard(card, tableCard, forcedSuit, pendingDraw) {
   const tv = tableCard.slice(0,-1);
   const ts = tableCard.slice(-1);
 
-  // +3 chain
+  // ===== +3 chain =====
   if (pendingDraw > 0) {
     if (v === "7") return true;
     if (v === "J" && s === "♣") return true;
     return false;
   }
 
-  // forced suit
-  if (forcedSuit) return s === forcedSuit;
-
-  // green jack wildcard
-  if (v === "J" && s === "♣") return true;
-
-  // queen always playable
+  // ===== QUEEN ALWAYS PLAYABLE =====
   if (v === "Q") return true;
 
+  // ===== GREEN JACK WILDCARD =====
+  if (v === "J" && s === "♣") return true;
+
+  // ===== FORCED SUIT =====
+  if (forcedSuit) {
+    return s === forcedSuit;
+  }
+
+  // ===== NORMAL MATCH =====
   return v === tv || s === ts;
 }
+
 
 /* =========================
    SOCKET SERVER
@@ -371,6 +375,8 @@ socket.on("startGame", code => {
     g.pendingDraw = 0;
     g.skipCount = 0;
   }
+  // consume forced suit after one turn
+  g.forcedSuit = null;
 
   /* =========================
      NORMAL TURN FLOW
