@@ -297,39 +297,40 @@ io.on("connection", socket => {
      DRAW CARD
   ========================= */
 
-  socket.on("drawCard", code => {
+ socket.on("drawCard", code => {
 
-    const room = rooms[code];
-    if (!room || !room.game) return;
+  const room = rooms[code];
+  if (!room || !room.game) return;
 
-    const g = room.game;
+  const g = room.game;
 
-    const currentPlayer = g.order[g.turnIndex];
-    if (socket.id !== currentPlayer) return;
+  const currentPlayer = g.order[g.turnIndex];
+  if (socket.id !== currentPlayer) return;
 
-    console.log("DRAW:", socket.id);
+  if (g.deck.length === 0) return;
 
-    let amount = g.pendingDraw > 0 ? g.pendingDraw : 1;
+  // ===== DRAW =====
+  const card = g.deck.pop();
+  g.hands[socket.id].push(card);
 
-    for (let i = 0; i < amount && g.deck.length; i++) {
-      const card = g.deck.pop();
-      g.hands[socket.id].push(card);
-    }
+  // reset penalties
+  g.pendingDraw = 0;
+  g.skipCount = 0;
 
-    g.pendingDraw = 0;
+  // ===== NEXT TURN =====
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-    g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-    io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: g.order[g.turnIndex],
-      forcedSuit: g.forcedSuit,
-      pendingDraw: g.pendingDraw,
-      skipCount: g.skipCount
-    });
-
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount
   });
+
+});
+
 
   /* =========================
      DISCONNECT
