@@ -217,7 +217,7 @@ socket.on("startGame", code => {
    PLAY CARD
 ========================= */
 
-socket.on("playCard", ({ room: code, cards }) => {
+  socket.on("playCard", ({ room: code, cards }) => {
 
   const room = rooms[code];
   if (!room || !room.game) return;
@@ -240,17 +240,15 @@ socket.on("playCard", ({ room: code, cards }) => {
 
   // ===== REMOVE CARDS =====
 
-  // ===== REMOVE CARDS =====
-
-cards.forEach(c => {
+  cards.forEach(c => {
   const i = hand.indexOf(c);
   if (i !== -1) hand.splice(i, 1);
-});
+  });
 
 
-// ===== WIN CHECK =====
+  // ===== WIN CHECK =====
 
-if (hand.length === 0) {
+  if (hand.length === 0) {
 
   io.to(code).emit("gameOver", {
     winner: socket.id
@@ -258,7 +256,7 @@ if (hand.length === 0) {
 
   room.game = null;
   return;
-}
+  }
 
 
   const last = cards[cards.length-1];
@@ -267,11 +265,11 @@ if (hand.length === 0) {
 
   g.tableCard = last;
 
-/* ===== BURN ===== */
+  /* ===== BURN ===== */
 
-const sameValue = cards.every(c => c.slice(0,-1) === value);
+  const sameValue = cards.every(c => c.slice(0,-1) === value);
 
-if (sameValue && cards.length === 4) {
+  if (sameValue && cards.length === 4) {
 
   g.pendingDraw = 0;
   g.skipCount = 0;
@@ -285,11 +283,11 @@ if (sameValue && cards.length === 4) {
   });
 
   return;
-}
+  }
 
-/* ===== ACE STOP ===== */
+  /* ===== ACE STOP ===== */
 
-if (value === "A") {
+  if (value === "A") {
 
   // nastav stopku pre ďalšieho hráča
   g.skipCount = 1;
@@ -352,13 +350,6 @@ if (value === "Q") {
 
 g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-// consume ace skip
-if (g.skipCount > 0) {
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
-  g.skipCount = 0;
-}
-
-
 io.to(code).emit("gameUpdate", {
   hands: g.hands,
   tableCard: g.tableCard,
@@ -370,11 +361,7 @@ io.to(code).emit("gameUpdate", {
 
 });
 
-/* =========================
-   DRAW CARD
-========================= */
-
-socket.on("drawCard", code => {
+socket.on("standAce", code => {
 
   const room = rooms[code];
   if (!room || !room.game) return;
@@ -384,17 +371,72 @@ socket.on("drawCard", code => {
   const current = g.order[g.turnIndex];
   if (socket.id !== current) return;
 
-/* ===== +3 FORCED DRAW ===== */
+  // spotrebuj stopku
+  g.skipCount = 0;
 
-if (g.pendingDraw > 0) {
+  // posuň na ďalšieho hráča
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-  const amount = g.pendingDraw;
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount
+  });
 
-  for (let i=0;i<amount && g.deck.length;i++) {
-    g.hands[socket.id].push(g.deck.pop());
+});
+
+
+/* =========================
+   DRAW CARD
+========================= */
+socket.on("drawCard", code => {
+
+  const room = rooms[code];
+  if (!room || !room.game) return;
+
+  const g = room.game;
+
+  const current = g.order[g.turnIndex];
+  if (socket.id !== current) return;
+  
+  // =========================
+  // +3 FORCED DRAW
+  // =========================
+
+  if (g.pendingDraw > 0) {
+
+    const amount = g.pendingDraw;
+
+    for (let i = 0; i < amount && g.deck.length; i++) {
+      g.hands[socket.id].push(g.deck.pop());
+    }
+
+    g.pendingDraw = 0;
+
+    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+    io.to(code).emit("gameUpdate", {
+      hands: g.hands,
+      tableCard: g.tableCard,
+      turnPlayer: g.order[g.turnIndex],
+      forcedSuit: g.forcedSuit,
+      pendingDraw: g.pendingDraw,
+      skipCount: g.skipCount
+    });
+
+    return;
   }
 
-  g.pendingDraw = 0;
+  // =========================
+  // NORMAL DRAW
+  // =========================
+
+  if (!g.deck.length) return;
+
+  g.hands[socket.id].push(g.deck.pop());
 
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
@@ -407,27 +449,8 @@ if (g.pendingDraw > 0) {
     skipCount: g.skipCount
   });
 
-  return;
-}
-
-/* ===== NORMAL DRAW ===== */
-
-if (!g.deck.length) return;
-
-g.hands[socket.id].push(g.deck.pop());
-
-g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-io.to(code).emit("gameUpdate", {
-  hands: g.hands,
-  tableCard: g.tableCard,
-  turnPlayer: g.order[g.turnIndex],
-  forcedSuit: g.forcedSuit,
-  pendingDraw: g.pendingDraw,
-  skipCount: g.skipCount
 });
 
-});
 
 /* =========================
    DISCONNECT
