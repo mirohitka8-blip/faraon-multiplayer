@@ -391,6 +391,34 @@ socket.on("startGame", code => {
 
 });
 
+socket.on("standAce", ({ room: code }) => {
+
+  const room = rooms[code];
+  if (!room || !room.game) return;
+
+  const g = room.game;
+
+  const current = g.order[g.turnIndex];
+  if (socket.id !== current) return;
+
+  // spotrebuj stop efekt
+  g.skipCount = 0;
+
+  // posuň turn ďalej
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount
+  });
+});
+
+
+
 socket.on("setSuit", ({ room: code, suit }) => {
 
   const room = rooms[code];
@@ -414,35 +442,6 @@ socket.on("setSuit", ({ room: code, suit }) => {
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount
   });
-});
-
-
-
-socket.on("standAce", code => {
-
-  const room = rooms[code];
-  if (!room || !room.game) return;
-
-  const g = room.game;
-
-  const current = g.order[g.turnIndex];
-  if (socket.id !== current) return;
-
-  // spotrebuj stopku
-  g.skipCount = 0;
-
-  // posuň na ďalšieho hráča
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: g.order[g.turnIndex],
-    forcedSuit: g.forcedSuit,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
-  });
-
 });
 
 
@@ -512,36 +511,6 @@ socket.on("drawCard", code => {
 /* =========================
    DISCONNECT
 ========================= */
-
-socket.on("standAce", code => {
-
-  const room = rooms[code];
-  if (!room || !room.game) return;
-
-  const g = room.game;
-
-  const current = g.order[g.turnIndex];
-
-  // iba hráč na rade môže stáť
-  if (socket.id !== current) return;
-
-  // spotrebuj stopku
-  g.skipCount = 0;
-
-  // posuň turn
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
-
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: g.order[g.turnIndex],
-    forcedSuit: g.forcedSuit,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
-  });
-
-});
-
 
 socket.on("disconnect", () => {
 
