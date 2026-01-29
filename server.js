@@ -343,14 +343,18 @@ socket.on("startGame", code => {
     g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
     io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: g.order[g.turnIndex],
-      forcedSuit: g.forcedSuit,
-      pendingDraw: g.pendingDraw,
-      skipCount: g.skipCount,
-      action: { type: "play", card: last }
-    });
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    effects: {
+    seven: true,
+    penalty: g.pendingDraw
+  }
+});
+
 
     return;
   }
@@ -360,9 +364,25 @@ socket.on("startGame", code => {
   ========================= */
 
   if (value === "J" && suit === "♣") {
-    g.pendingDraw = 0;
-    g.skipCount = 0;
-  }
+
+  g.pendingDraw = 0;
+  g.skipCount = 0;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: socket.id,
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    effects: {
+      greenJack: true
+    }
+  });
+
+  return;
+}
+
 
   g.forcedSuit = null;
 
