@@ -363,16 +363,22 @@ socket.on("startGame", code => {
      GREEN JACK RESET
   ========================= */
 
-  if (value === "J" && suit === "♣") {
+  /* ===== GREEN JACK RESET ===== */
 
+if (value === "J" && suit === "♣") {
+
+  // reset penalties
   g.pendingDraw = 0;
   g.skipCount = 0;
+
+  // move to next player
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
   io.to(code).emit("gameUpdate", {
     hands: g.hands,
     tableCard: g.tableCard,
-    turnPlayer: socket.id,
-    forcedSuit: g.forcedSuit,
+    turnPlayer: g.order[g.turnIndex],
+    forcedSuit: null,
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount,
     effects: {
@@ -382,6 +388,7 @@ socket.on("startGame", code => {
 
   return;
 }
+
 
 
   g.forcedSuit = null;
