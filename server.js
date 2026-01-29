@@ -339,10 +339,11 @@ socket.on("startGame", code => {
 
   if (value === "7") {
 
-    g.pendingDraw += 3;
-    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+  g.pendingDraw += 3;
 
-    io.to(code).emit("gameUpdate", {
+  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+  io.to(code).emit("gameUpdate", {
     hands: g.hands,
     tableCard: g.tableCard,
     turnPlayer: g.order[g.turnIndex],
@@ -350,14 +351,13 @@ socket.on("startGame", code => {
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount,
     effects: {
-    seven: true,
-    penalty: g.pendingDraw
-  }
-});
+      seven: true,
+      penaltyValue: g.pendingDraw
+    }
+  });
 
-
-    return;
-  }
+  return;
+}
 
   /* =========================
      GREEN JACK RESET
