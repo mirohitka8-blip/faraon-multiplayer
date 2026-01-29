@@ -258,11 +258,28 @@ socket.on("startGame", code => {
     if (idx !== -1) hand.splice(idx, 1);
   });
 
+  /* =========================
+   WIN CHECK (ALWAYS FIRST)
+========================= */
+
+if (hand.length === 0) {
+
+  io.to(code).emit("gameOver", {
+    winner: socket.id,
+    lastCard: cards[cards.length - 1]
+  });
+
+  room.game = null;
+  return;
+}
+
   const last = cards[cards.length - 1];
   const value = last.slice(0, -1);
   const suit = last.slice(-1);
 
   g.tableCard = last;
+
+
 
   /* =========================
      BURN
@@ -389,8 +406,6 @@ if (value === "J" && suit === "♣") {
   return;
 }
 
-
-
   g.forcedSuit = null;
 
   /* =========================
@@ -408,19 +423,6 @@ if (value === "J" && suit === "♣") {
     skipCount: g.skipCount,
     action: { type: "play", card: last }
   });
-
-  /* =========================
-     WIN CHECK (AFTER UPDATE)
-  ========================= */
-
-  if (hand.length === 0) {
-
-    io.to(code).emit("gameOver", {
-      winner: socket.id
-    });
-
-    room.game = null;
-  }
 
 });
 
