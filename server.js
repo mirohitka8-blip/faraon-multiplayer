@@ -364,6 +364,7 @@ if (hand.length === 0) {
   if (value === "7") {
 
   g.pendingDraw += 3;
+  g.forcedSuit = null; // 🔥 zruš horník farbu
 
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
@@ -382,6 +383,7 @@ if (hand.length === 0) {
 
   return;
 }
+
 
   /* =========================
      GREEN JACK RESET
@@ -507,7 +509,7 @@ socket.on("drawCard", code => {
   ========================= */
 
   if (g.pendingDraw > 0) {
-    
+
     g.forcedSuit = null;
     const amount = g.pendingDraw;
 
