@@ -40,30 +40,37 @@ function createDeck() {
 
 function canPlayCard(card, tableCard, forcedSuit, pendingDraw) {
 
-  const v = card.slice(0, -1);
+  const v = card.slice(0,-1);
   const s = card.slice(-1);
 
-  const tv = tableCard.slice(0, -1);
+  const tv = tableCard.slice(0,-1);
   const ts = tableCard.slice(-1);
 
-  /* ===== GREEN JACK WILDCARD ===== */
-  // J♣ can be played anytime
-  if (v === "J" && s === "♣") return true;
-  // anything can be played on J♣
-  if (tv === "J" && ts === "♣") return true;
-  /* ===== +3 STACK ===== */
+  // ======================
+  // STACK HAS TOP PRIORITY
+  // ======================
   if (pendingDraw > 0) {
+    // only 7 or green jack allowed
     if (v === "7") return true;
     if (v === "J" && s === "♣") return true;
+
     return false;
   }
-  /* ===== FORCED SUIT (QUEEN) ===== */
-  if (forcedSuit) {
-    return s === forcedSuit;
-  }
-  /* ===== QUEEN ALWAYS PLAYABLE ===== */
+  // ======================
+  // QUEEN ALWAYS PLAYABLE
+  // ======================
   if (v === "Q") return true;
-  /* ===== NORMAL MATCH ===== */
+  // ======================
+  // GREEN JACK WILDCARD
+  // ======================
+  if (v === "J" && s === "♣") return true;
+  // ======================
+  // FORCED SUIT
+  // ======================
+  if (forcedSuit) return s === forcedSuit;
+  // ======================
+  // NORMAL MATCH
+  // ======================
   return v === tv || s === ts;
 }
 
@@ -500,7 +507,8 @@ socket.on("drawCard", code => {
   ========================= */
 
   if (g.pendingDraw > 0) {
-
+    
+    g.forcedSuit = null;
     const amount = g.pendingDraw;
 
     for (let i = 0; i < amount && g.deck.length; i++) {
@@ -524,11 +532,8 @@ socket.on("drawCard", code => {
     player: socket.id
   }
 });
-
-
-
-    return;
-  }
+return;
+}
 
   /* =========================
      NORMAL DRAW
