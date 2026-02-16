@@ -286,6 +286,30 @@ if (hand.length === 0) {
 
   g.tableCard = last;
 
+// 🔥 1️⃣ RESET FORCED SUIT OKAMŽITE
+if (g.forcedSuit && suit === g.forcedSuit) {
+  g.forcedSuit = null;
+}
+
+// 🔥 2️⃣ POTOM SPRACUJ ŠPECIÁLNE KARTY
+
+if (value === "7") {
+  g.penalty += 3;
+}
+
+if (value === "A") {
+  g.skip = true;
+}
+
+if (value === "J" && suit === "♣") {
+  g.penalty = 0;
+}
+
+if (value === "Q") {
+  g.forcedSuit = data.chosenSuit;
+}
+
+
 
 
   /* =========================
