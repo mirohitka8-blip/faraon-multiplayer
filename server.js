@@ -286,11 +286,6 @@ if (hand.length === 0) {
 
   g.tableCard = last;
 
-// 🔥 1️⃣ RESET FORCED SUIT OKAMŽITE
-if (g.forcedSuit && suit === g.forcedSuit) {
-  g.forcedSuit = null;
-}
-
 // 🔥 2️⃣ POTOM SPRACUJ ŠPECIÁLNE KARTY
 
 if (value === "7") {
@@ -306,8 +301,25 @@ if (value === "J" && suit === "♣") {
 }
 
 if (value === "Q") {
-  g.forcedSuit = data.chosenSuit;
+
+  // počkaj na výber farby
+  g.waitingForQueen = socket.id;
+
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: socket.id, // stále ten istý hráč
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    queenDecision: true,
+    action: { type: "play", card: last }
+  });
+
+  return;
 }
+
+
 
 
 
@@ -364,22 +376,22 @@ if (value === "Q") {
 
   if (value === "A") {
 
-    g.skipCount = 1;
-    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+  g.skipCount = 1;
 
-    io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: g.order[g.turnIndex],
-      forcedSuit: g.forcedSuit,
-      pendingDraw: g.pendingDraw,
-      skipCount: g.skipCount,
-      aceDecision: true,
-      action: { type: "play", card: last }
-    });
+  io.to(code).emit("gameUpdate", {
+    hands: g.hands,
+    tableCard: g.tableCard,
+    turnPlayer: g.order[g.turnIndex], // ostáva rovnaký hráč
+    forcedSuit: g.forcedSuit,
+    pendingDraw: g.pendingDraw,
+    skipCount: g.skipCount,
+    aceDecision: true,
+    action: { type: "play", card: last }
+  });
 
-    return;
-  }
+  return;
+}
+
 
   /* =========================
      +3 STACK
@@ -441,6 +453,15 @@ if (value === "J" && suit === "♣") {
 
   g.forcedSuit = null;
 
+    // reset forcedSuit iba ak bola zahraná karta tej farby
+if (
+  g.forcedSuit &&
+  suit === g.forcedSuit &&
+  value !== "Q"
+) {
+  g.forcedSuit = null;
+}
+
   /* =========================
      NORMAL TURN
   ========================= */
@@ -496,12 +517,10 @@ socket.on("setSuit", ({ room: code, suit }) => {
 
   const g = room.game;
 
-  const current = g.order[g.turnIndex];
-  if (socket.id !== current) return;
+  if (g.waitingForQueen !== socket.id) return;
 
   g.forcedSuit = suit;
-
-  // posuň turn ďalej
+  g.waitingForQueen = null;
   g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
   io.to(code).emit("gameUpdate", {
@@ -512,7 +531,9 @@ socket.on("setSuit", ({ room: code, suit }) => {
     pendingDraw: g.pendingDraw,
     skipCount: g.skipCount
   });
+
 });
+
 
 
 /* =========================
