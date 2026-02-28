@@ -134,6 +134,31 @@ socket.on("joinRoom", ({ code, name }) => {
   io.to(code).emit("roomUpdate", room);
 });
 
+
+/* =========================
+   PLAYER READY
+========================= */
+
+socket.on("playerReady", ({ room: code }) => {
+
+  const room = rooms[code];
+  if (!room) return;
+
+  const player = room.players.find(p => p.id === socket.id);
+  if (!player) return;
+
+  // toggle ready (lepšie ako len true)
+  player.ready = !player.ready;
+
+  console.log("READY UPDATE:", room.players);
+
+  io.to(code).emit("roomUpdate", {
+    players: room.players,
+    host: room.host
+  });
+
+});
+
 /* =========================
    START GAME
 ========================= */
