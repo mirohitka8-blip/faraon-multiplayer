@@ -388,28 +388,72 @@ socket.on("standAce", ({ room: code }) => {
    SET SUIT
 ========================= */
 
-socket.on("setSuit", ({ room: code, suit }) => {
+    socket.on("setSuit", ({ room: code, suit }) => {
 
-  const room = rooms[code];
-  if (!room || !room.game) return;
+        const room = rooms[code];
+        if (!room || !room.game) return;
 
-  const g = room.game;
+        const g = room.game;
 
-  if (g.waitingForQueen !== socket.id) return;
+        if (g.waitingForQueen !== socket.id) return;
 
-  g.forcedSuit = suit;
-  g.waitingForQueen = null;
-  g.turnIndex = (g.turnIndex + 1) % g.order.length;
+        g.forcedSuit = suit;
+        g.waitingForQueen = null;
+        g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-  io.to(code).emit("gameUpdate", {
-    hands: g.hands,
-    tableCard: g.tableCard,
-    turnPlayer: g.order[g.turnIndex],
-    forcedSuit: g.forcedSuit,
-    pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
-  });
+        io.to(code).emit("gameUpdate", {
+            hands: g.hands,
+            tableCard: g.tableCard,
+            turnPlayer: g.order[g.turnIndex],
+            forcedSuit: g.forcedSuit,
+            pendingDraw: g.pendingDraw,
+            skipCount: g.skipCount
+        });
 
-});
+    });
+
+    socket.on("drawCard", code => {
+
+        const room = rooms[code];
+        if (!room || !room.game) return;
+
+        const g = room.game;
+
+        // iba hráč na ťahu môže ťahať
+        if (g.order[g.turnIndex] !== socket.id) return;
+
+        const hand = g.hands[socket.id];
+
+        // +3 trest
+        let amount = 1;
+
+        if (g.pendingDraw > 0) {
+            amount = g.pendingDraw;
+        }
+
+        // potiahni karty
+        for (let i = 0; i < amount; i++) {
+
+            if (g.deck.length === 0) break;
+
+            hand.push(g.deck.pop());
+        }
+
+        // zruš trest
+        g.pendingDraw = 0;
+
+        // ďalší hráč
+        g.turnIndex = (g.turnIndex + 1) % g.order.length;
+
+        io.to(code).emit("gameUpdate", {
+            hands: g.hands,
+            tableCard: g.tableCard,
+            turnPlayer: g.order[g.turnIndex],
+            forcedSuit: g.forcedSuit,
+            pendingDraw: g.pendingDraw,
+            skipCount: g.skipCount
+        });
+
+    });
 
 });
