@@ -413,6 +413,7 @@ socket.on("standAce", ({ room: code }) => {
     });
 
     socket.on("drawCard", code => {
+        console.log("DRAW EVENT", code, socket.id);
 
         const room = rooms[code];
         if (!room || !room.game) return;
