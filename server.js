@@ -304,25 +304,26 @@ socket.on("playCard", ({ room: code, cards }) => {
         return;
     }
 
-  /* ===== +3 STACK ===== */
-  if (value === "7") {
+    /* ===== +3 STACK ===== */
+    if (value === "7") {
 
-    g.pendingDraw += 3;
-    g.forcedSuit = null;
+        g.pendingDraw += cards.length * 3;
 
-    g.turnIndex = (g.turnIndex + 1) % g.order.length;
+        g.forcedSuit = null;
 
-    io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: g.order[g.turnIndex],
-      forcedSuit: null,
-      pendingDraw: g.pendingDraw,
-      skipCount: g.skipCount
-    });
+        g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-    return;
-  }
+        io.to(code).emit("gameUpdate", {
+            hands: g.hands,
+            tableCard: g.tableCard,
+            turnPlayer: g.order[g.turnIndex],
+            forcedSuit: null,
+            pendingDraw: g.pendingDraw,
+            skipCount: g.skipCount
+        });
+
+        return;
+    }
 
   /* ===== GREEN JACK ===== */
   if (value === "J" && suit === "♣") {
