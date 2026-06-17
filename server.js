@@ -277,23 +277,25 @@ socket.on("playCard", ({ room: code, cards }) => {
     return;
   }
 
-  /* ===== ACE ===== */
-  if (value === "A") {
+    /* ===== ACE ===== */
+    if (value === "A") {
 
-    g.skipCount = 1;
+        g.skipCount = 1;
 
-    io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: socket.id,
-      forcedSuit: g.forcedSuit,
-      pendingDraw: g.pendingDraw,
-      skipCount: g.skipCount,
-      aceDecision: true
-    });
+        g.turnIndex = (g.turnIndex + 1) % g.order.length;
 
-    return;
-  }
+        io.to(code).emit("gameUpdate", {
+            hands: g.hands,
+            tableCard: g.tableCard,
+            turnPlayer: g.order[g.turnIndex],
+            forcedSuit: g.forcedSuit,
+            pendingDraw: g.pendingDraw,
+            skipCount: g.skipCount,
+            aceDecision: true
+        });
+
+        return;
+    }
 
   /* ===== +3 STACK ===== */
   if (value === "7") {
