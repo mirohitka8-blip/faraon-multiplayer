@@ -78,34 +78,35 @@ io.on("connection", socket => {
    CREATE ROOM
 ========================= */
 
-socket.on("createRoom", payload => {
+    socket.on("createRoom", payload => {
 
-  const name = typeof payload === "string"
-    ? payload
-    : payload?.name;
+        const name = typeof payload === "string"
+            ? payload
+            : payload?.name;
 
-  const code = generateRoomCode();
+        const code = generateRoomCode();
 
-  rooms[code] = {
-    host: socket.id,
-    players: [{
-      id: socket.id,
-      name,
-      ready: false
-    }],
-    game: null
-  };
+        rooms[code] = {
+            host: socket.id,
+            players: [{
+                id: socket.id,
+                name,
+                ready: false
+            }],
+            game: null,
+            rematchVotes: []
+        };
 
-  socket.join(code);
+        socket.join(code);
 
-  socket.emit("roomJoined", {
-    roomCode: code,
-    isHost: true,
-    players: rooms[code].players
-  });
+        socket.emit("roomJoined", {
+            roomCode: code,
+            isHost: true,
+            players: rooms[code].players
+        });
 
-  io.to(code).emit("roomUpdate", rooms[code]);
-});
+        io.to(code).emit("roomUpdate", rooms[code]);
+    });
 
 /* =========================
    JOIN ROOM
@@ -464,6 +465,70 @@ socket.on("playCard", ({ room: code, cards }) => {
             pendingDraw: g.pendingDraw,
             skipCount: g.skipCount
         });
+
+    });
+
+    /* =========================
+   REMATCH
+========================= */
+
+    socket.on("rematch", code => {
+
+        console.log("REMATCH CLICK", socket.id, code);
+
+        const room = rooms[code];
+
+        if (!room) {
+            console.log("ROOM NOT FOUND");
+            return;
+        }
+
+        if (!room.rematchVotes) {
+            room.rematchVotes = [];
+        }
+
+        if (!room.rematchVotes.includes(socket.id)) {
+            room.rematchVotes.push(socket.id);
+        }
+
+        console.log(
+            "REMATCH STATUS:",
+            room.rematchVotes.length,
+            "/",
+            room.players.length
+        );
+
+        // čakáme na všetkých hráčov
+        if (room.rematchVotes.length < room.players.length) {
+            return;
+        }
+
+        console.log("STARTING REMATCH");
+
+        room.rematchVotes = [];
+
+        const deck = createDeck();
+        const hands = {};
+
+        room.players.forEach(p => {
+            hands[p.id] = deck.splice(0, 5);
+        });
+
+        const tableCard = deck.pop();
+
+        room.game = {
+            deck,
+            hands,
+            tableCard,
+            order: room.players.map(p => p.id),
+            turnIndex: 0,
+            pendingDraw: 0,
+            skipCount: 0,
+            forcedSuit: null,
+            waitingForQueen: null
+        };
+
+        io.to(code).emit("gameStarted", room.game);
 
     });
 
