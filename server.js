@@ -499,6 +499,10 @@ socket.on("playCard", ({ room: code, cards }) => {
 
         if (!room.rematchVotes.includes(socket.id)) {
             room.rematchVotes.push(socket.id);
+            io.to(code).emit("rematchUpdate", {
+                ready: room.rematchVotes.length,
+                total: room.players.length
+            });
         }
 
         console.log(
