@@ -204,9 +204,15 @@ socket.on("playCard", ({ room: code, cards }) => {
   if (!room || !room.game) return;
 
   const g = room.game;
-  const current = g.order[g.turnIndex];
+    const current = g.order[g.turnIndex];
 
-  if (socket.id !== current) return;
+    console.log("CURRENT =", current);
+    console.log("CLICKED =", socket.id);
+
+    if (socket.id !== current) {
+        console.log("WRONG PLAYER");
+        return;
+    }
 
   const hand = g.hands[socket.id];
   const first = cards[0];
@@ -364,7 +370,9 @@ socket.on("playCard", ({ room: code, cards }) => {
    STAND ACE
 ========================= */
 
-socket.on("standAce", ({ room: code }) => {
+    socket.on("standAce", ({ room: code }) => {
+
+    console.log("SERVER STAND ACE", socket.id, code);
 
   const room = rooms[code];
   if (!room || !room.game) return;
