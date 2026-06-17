@@ -253,15 +253,16 @@ socket.on("playCard", ({ room: code, cards }) => {
     g.skipCount = 0;
     g.forcedSuit = null;
 
-    io.to(code).emit("gameUpdate", {
-      hands: g.hands,
-      tableCard: g.tableCard,
-      turnPlayer: socket.id,
-      forcedSuit: null,
-      pendingDraw: 0,
-      skipCount: 0,
-      effects: { burn: true }
-    });
+      io.to(code).emit("gameUpdate", {
+          hands: g.hands,
+          tableCard: g.tableCard,
+          turnPlayer: socket.id,
+          forcedSuit: null,
+          pendingDraw: 0,
+          skipCount: 0,
+          effects: { burn: true },
+          lastActor: socket.id
+      });
 
     return;
   }
@@ -278,7 +279,8 @@ socket.on("playCard", ({ room: code, cards }) => {
       forcedSuit: g.forcedSuit,
       pendingDraw: g.pendingDraw,
       skipCount: g.skipCount,
-      queenDecision: true
+        queenDecision: true,
+      lastActor: socket.id
     });
 
     return;
@@ -298,7 +300,8 @@ socket.on("playCard", ({ room: code, cards }) => {
             forcedSuit: g.forcedSuit,
             pendingDraw: g.pendingDraw,
             skipCount: g.skipCount,
-            aceDecision: true
+            aceDecision: true,
+            lastActor: socket.id
         });
 
         return;
@@ -319,7 +322,8 @@ socket.on("playCard", ({ room: code, cards }) => {
             turnPlayer: g.order[g.turnIndex],
             forcedSuit: null,
             pendingDraw: g.pendingDraw,
-            skipCount: g.skipCount
+            skipCount: g.skipCount,
+            lastActor: socket.id
         });
 
         return;
@@ -339,7 +343,8 @@ socket.on("playCard", ({ room: code, cards }) => {
       turnPlayer: g.order[g.turnIndex],
       forcedSuit: null,
       pendingDraw: 0,
-      skipCount: 0
+        skipCount: 0,
+        lastActor: socket.id
     });
 
     return;
@@ -363,7 +368,8 @@ socket.on("playCard", ({ room: code, cards }) => {
     turnPlayer: g.order[g.turnIndex],
     forcedSuit: g.forcedSuit,
     pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
+      skipCount: g.skipCount,
+      lastActor: socket.id
   });
 
 });
@@ -392,7 +398,8 @@ socket.on("playCard", ({ room: code, cards }) => {
     turnPlayer: g.order[g.turnIndex],
     forcedSuit: g.forcedSuit,
     pendingDraw: g.pendingDraw,
-    skipCount: g.skipCount
+      skipCount: g.skipCount,
+      lastActor: socket.id
   });
 });
 
@@ -419,7 +426,8 @@ socket.on("playCard", ({ room: code, cards }) => {
             turnPlayer: g.order[g.turnIndex],
             forcedSuit: g.forcedSuit,
             pendingDraw: g.pendingDraw,
-            skipCount: g.skipCount
+            skipCount: g.skipCount,
+            lastActor: socket.id
         });
 
     });
@@ -464,7 +472,8 @@ socket.on("playCard", ({ room: code, cards }) => {
             turnPlayer: g.order[g.turnIndex],
             forcedSuit: g.forcedSuit,
             pendingDraw: g.pendingDraw,
-            skipCount: g.skipCount
+            skipCount: g.skipCount,
+            lastActor: socket.id
         });
 
     });
